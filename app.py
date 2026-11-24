@@ -2,6 +2,7 @@
 import gradio as gr
 import json
 import re
+import os
 from pathlib import Path
 from datetime import datetime, timezone
 
@@ -11,12 +12,11 @@ OUTPUT_DIR = Path("outputs")
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 
-def buat_storyboard(judul, tema, durasi, bahasa, karakter, tujuan):
+def buat_episode(judul, tema, durasi, bahasa, karakter, tujuan):
     if not judul.strip() or not tema.strip():
         raise gr.Error("Judul dan tema cerita wajib diisi.")
 
-    durasi = int(durasi)
-    total = durasi * 60
+    total = int(durasi) * 60
 
     adegan = [
         ("Pembukaan", 0.10, "Perkenalkan karakter dan tempat cerita."),
@@ -53,7 +53,7 @@ def buat_storyboard(judul, tema, durasi, bahasa, karakter, tujuan):
     project = {
         "judul": judul,
         "tema": tema,
-        "durasi_menit": durasi,
+        "durasi_menit": int(durasi),
         "bahasa": bahasa,
         "karakter": daftar_karakter,
         "tujuan_edukasi": tujuan,
@@ -62,23 +62,13 @@ def buat_storyboard(judul, tema, durasi, bahasa, karakter, tujuan):
         "adegan": scenes
     }
 
-    return project
-
-
-def buat_episode(judul, tema, durasi, bahasa, karakter, tujuan):
-    project = buat_storyboard(
-        judul, tema, durasi, bahasa, karakter, tujuan
-    )
-
     preview = ""
 
-    for scene in project["adegan"]:
-        mulai = scene["mulai_detik"]
-        selesai = scene["selesai_detik"]
-
+    for scene in scenes:
         preview += (
             f"\nADEGAN {scene['nomor']}: {scene['nama']}\n"
-            f"Waktu: {mulai} - {selesai} detik\n"
+            f"Waktu: {scene['mulai_detik']} - "
+            f"{scene['selesai_detik']} detik\n"
             f"{scene['deskripsi']}\n"
         )
 
@@ -92,9 +82,7 @@ def setujui_episode(project):
     project["status"] = "Disetujui untuk tahap produksi"
 
     nama = re.sub(
-        r"[^a-zA-Z0-9]+",
-        "-",
-        project["judul"]
+        r"[^a-zA-Z0-9]+", "-", project["judul"]
     ).strip("-").lower()
 
     path = OUTPUT_DIR / f"{nama or 'episode'}.json"
@@ -112,23 +100,19 @@ with gr.Blocks(
     theme=gr.themes.Soft()
 ) as app:
 
-    gr.Markdown(
-        """
-        # 🎬 KIDS ANIMATION STUDIO AI
+    gr.Markdown("""
+    # 🎬 KIDS ANIMATION STUDIO AI
 
-        ### Studio produksi animasi anak 3D
+    ### Studio Produksi Animasi Anak 3D
 
-        Buat cerita, susun storyboard, dan periksa
-        konsep sebelum produksi animasi.
-        """
-    )
+    Buat cerita, susun storyboard, dan periksa konsep
+    sebelum produksi animasi.
+    """)
 
     state = gr.State(None)
 
     with gr.Row():
-
         with gr.Column():
-
             gr.Markdown("## INFORMASI EPISODE")
 
             judul = gr.Textbox(
@@ -169,7 +153,6 @@ with gr.Blocks(
             )
 
         with gr.Column():
-
             gr.Markdown("## HASIL STORYBOARD")
 
             status = gr.Markdown("Belum ada episode.")
@@ -191,12 +174,7 @@ with gr.Blocks(
     tombol.click(
         buat_episode,
         inputs=[
-            judul,
-            tema,
-            durasi,
-            bahasa,
-            karakter,
-            tujuan
+            judul, tema, durasi, bahasa, karakter, tujuan
         ],
         outputs=[state, preview, status]
     )
@@ -207,17 +185,18 @@ with gr.Blocks(
         outputs=[state, hasil, download]
     )
 
-    gr.Markdown(
-        """
-        ---
-        **KIDS ANIMATION STUDIO AI**
+    gr.Markdown("""
+    ---
+    **KIDS ANIMATION STUDIO AI**
 
-        Tahap 1: Perencanaan dan storyboard.
+    Tahap 1: Perencanaan dan storyboard.
 
-        Mesin animasi 3D akan ditambahkan pada tahap berikutnya.
-        """
-    )
+    Mesin animasi 3D akan ditambahkan pada tahap berikutnya.
+    """)
 
 
 if __name__ == "__main__":
-    app.launch()
+    app.launch(
+        server_name="0.0.0.0",
+        server_port=int(os.environ.get("PORT", "7860"))
+    )
